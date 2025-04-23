@@ -88,7 +88,9 @@ CREATE TABLE Carga (
 	id INTEGER,
 	peso REAL NOT NULL,
 	produto_id INTEGER NOT NULL,
+	porto_id VARCHAR(3),
 	CONSTRAINT carga_pk PRIMARY KEY (id),
+	CONSTRAINT porto_carga_pk FOREIGN KEY (porto_id) REFERENCES Porto(codigo),
 	CONSTRAINT produto_fk FOREIGN KEY (produto_id) REFERENCES Produto(id)
 );
 
@@ -140,3 +142,34 @@ INSERT INTO Rota VALUES
 	('BUE', 'MIA', 7000.0),
 	('MAR', 'BUE', 11000.0),
 	('MIA', 'BAR', 7500.0);
+
+INSERT INTO CategoriaProduto (id, nome, preco_para_movimentar) VALUES
+	(1, 'Eletrônicos', 50.00),
+	(2, 'Alimentos', 10.00),
+	(3, 'Vestuário', 20.00),
+	(4, 'Móveis', 100.00),
+	(5, 'Livros', 5.00);
+
+INSERT INTO Produto (id, nome, categoria_id) VALUES
+	(1, 'Smartphone', 1),
+	(2, 'Notebook', 1),
+	(3, 'Arroz 5kg', 2),
+	(4, 'Camiseta', 3),
+	(5, 'Sofá 3 lugares', 4),
+	(6, 'Livro de Romance', 5),
+	(7, 'Jaqueta de Couro', 3),
+	(8, 'Mesa de Escritório', 4),
+	(9, 'Chocolate 100g', 2),
+	(10, 'Carregador USB', 1);
+
+INSERT INTO Carga (id, peso, produto_id, porto_id) VALUES
+	(1, 500.0, 1, 'RJ1'),
+	(2, 1200.0, 2, 'SAN'),
+	(3, 2000.0, 3, 'BUE'),
+	(4, 300.0, 4, 'MIA'),
+	(5, 8000.0, 5, 'MAR'),
+	(6, 150.0, 6, 'BAR'),
+	(7, 700.0, 7, 'SHA'),
+	(8, 5000.0, 8, 'SHA'),
+	(9, 100.0, 9, 'SAN'),
+	(10, 250.0, 10, 'MIA');
