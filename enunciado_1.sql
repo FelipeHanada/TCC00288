@@ -11,75 +11,73 @@ RETURNS TABLE(
 DECLARE
 	atual RECORD;
 	proximo RECORD;
+	proximo_porto RECORD;
 	pilha CHAR(3)[] = ARRAY[]::CHAR(3)[];
 	atual_cod CHAR(3) = destino;
 	passo INTEGER = 0;
 	distancia REAL;
 	distancia_acumulada REAL = 0;
 BEGIN
-	-- EXECUTA DIJKSTRA
-	CREATE TEMP TABLE visitados (
+	-- EXECUÇÃO DIJKSTRA	
+	CREATE TEMP TABLE fila_prioridade (
 		porto CHAR(3) PRIMARY KEY,
 		distancia_origem REAL,
-		anterior CHAR(3)
+		anterior CHAR(3),
+		visitado BOOL DEFAULT FALSE
 	) ON COMMIT DROP;
-	
-	CREATE TEMP TABLE pq (
-		porto CHAR(3) PRIMARY KEY,
-		distancia_origem REAL,
-		anterior CHAR(3)
-	) ON COMMIT DROP;
-
-	INSERT INTO pq VALUES (origem, 0, '000');
+	INSERT INTO fila_prioridade VALUES (origem, 0, NULL, FALSE);
 
 	LOOP
         SELECT * INTO atual
-        FROM pq
+        FROM fila_prioridade
+		WHERE visitado = FALSE
         ORDER BY distancia_origem
         LIMIT 1;
-		
 		EXIT WHEN NOT FOUND;
 
-		DELETE FROM pq WHERE pq.porto = atual.porto;
+		UPDATE fila_prioridade
+		SET visitado = TRUE
+		WHERE porto = atual.porto;
 
-		BEGIN
-			INSERT INTO visitados VALUES (atual.porto, atual.distancia_origem, atual.anterior);
-		EXCEPTION WHEN unique_violation THEN
-			CONTINUE;
-		END;
-
-		FOR proximo IN
+		FOR proximo_porto IN
 			SELECT p.codigo, r.distancia
-			FROM Porto p JOIN Rota r ON (r.destino = p.codigo)
-			WHERE r.origem = atual.porto
+			FROM Porto p
+				JOIN Rota r ON (r.destino = p.codigo)
+				LEFT OUTER JOIN fila_prioridade fp ON (fp.porto = p.codigo)
+			WHERE
+				r.origem = atual.porto
+				AND atual.distancia_origem + r.distancia < distancia_maxima
+				-- não excede a distância máxima
+				AND (
+					fp.porto IS NULL OR (
+						fp.visitado AND
+						atual.distancia_origem + r.distancia < fp.distancia_origem
+					)
+					-- não é um caminho pior do que outro já encontrado
+				)
 		LOOP
-			IF atual.distancia_origem + proximo.distancia > distancia_maxima THEN
-				CONTINUE;
-			END IF;
-		
-			INSERT INTO pq (porto, distancia_origem, anterior)
-			VALUES (proximo.codigo, atual.distancia_origem + proximo.distancia, atual.porto)
+			INSERT INTO fila_prioridade (porto, distancia_origem, anterior)
+			VALUES (proximo_porto.codigo, atual.distancia_origem + proximo_porto.distancia, atual.porto)
 			ON CONFLICT (porto)
 			DO UPDATE SET
 			  distancia_origem = EXCLUDED.distancia_origem,
-			  anterior = EXCLUDED.anterior
-			WHERE pq.distancia_origem > EXCLUDED.distancia_origem;
+			  anterior = EXCLUDED.anterior;
 		END LOOP;
     END LOOP;
 
 	-- RECONSTRUÇÃO DO CAMINHO
 	SELECT * INTO atual
-		FROM visitados
-		WHERE visitados.porto = destino;
+		FROM fila_prioridade
+		WHERE fila_prioridade.porto = destino;
 
 	IF NOT FOUND THEN
 		RETURN;
 	END IF;
 
-	WHILE atual_cod IS NOT NULL AND atual_cod != '000' LOOP
+	WHILE atual_cod IS NOT NULL AND atual_cod IS NOT NULL LOOP
         pilha := array_prepend(atual_cod, pilha);
         SELECT anterior INTO atual_cod
-			FROM visitados
+			FROM fila_prioridade
 			WHERE porto = atual_cod;
     END LOOP;
 
