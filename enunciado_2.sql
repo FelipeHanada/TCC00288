@@ -1,3 +1,5 @@
+SET search_path TO fh;
+
 CREATE OR REPLACE FUNCTION calcular_custo_movimentacao(p_volume REAL, p_categoria INTEGER) RETURNS REAL AS $$
 DECLARE
     v_preco REAL;
@@ -21,16 +23,15 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION enunciado2(p_navio INTEGER) 
 RETURNS TABLE(
     carga_id INTEGER,
-    porto_id VARCHAR(3),
+    navio_id INTEGER,
     custo_unloading REAL
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT Ca.id, Ca.porto_id, calcular_custo_movimentacao(Ca.peso, Pr.categoria_id)
+    SELECT Ca.id, p_navio, calcular_custo_movimentacao(Ca.peso, Pr.categoria_id)
     FROM Carga Ca JOIN Produto Pr ON Ca.produto_id = Pr.id
     WHERE Ca.navio_id = p_navio;
 END;
 $$ LANGUAGE plpgsql;
 
-SELECT * from enunciado2(1);
-
+SELECT * from enunciado2(7);

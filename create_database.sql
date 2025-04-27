@@ -60,7 +60,7 @@ CREATE TABLE Navio (
 	nome VARCHAR(128) NOT NULL,
 	pais_origem CHAR(3) NOT NULL,
 	modelo VARCHAR(64) NOT NULL,
-	porto_id CHAR(3),
+	porto_id CHAR(3),  -- != NULL = atracao em um poro | NULL = em movimento
 	CONSTRAINT navio_pk PRIMARY KEY (codigo),
 	CONSTRAINT modelo_fk FOREIGN KEY (modelo) REFERENCES Modelo(codigo),
 	CONSTRAINT pais_fk FOREIGN KEY (pais_origem) REFERENCES Pais(codigo),
@@ -95,7 +95,8 @@ CREATE TABLE Carga (
 	CONSTRAINT carga_pk PRIMARY KEY (id),
 	CONSTRAINT porto_carga_fk FOREIGN KEY (porto_id) REFERENCES Porto(codigo),
 	CONSTRAINT produto_fk FOREIGN KEY (produto_id) REFERENCES Produto(id),
-	CONSTRAINT navio_carga_fk FOREIGN KEY (navio_id) REFERENCES Navio(codigo)
+	CONSTRAINT navio_carga_fk FOREIGN KEY (navio_id) REFERENCES Navio(codigo),
+	CONSTRAINT em_transito_ck CHECK ((navio_id IS NULL OR porto_id IS NULL) AND (navio_id IS NOT NULL OR porto_id IS NOT NULL))
 );
 
 DROP TABLE IF EXISTS TipoNavioTransporta CASCADE;
@@ -166,19 +167,6 @@ INSERT INTO Produto (id, nome, categoria_id) VALUES
 	(9, 'Chocolate 100g', 2),
 	(10, 'Carregador USB', 1);
 
-INSERT INTO Carga (id, peso, produto_id, porto_id) VALUES
-	(1, 500.0, 1, 'RJ1'),
-	(2, 1200.0, 2, 'SAN'),
-	(3, 2000.0, 3, 'BUE'),
-	(4, 300.0, 4, 'MIA'),
-	(5, 8000.0, 5, 'MAR'),
-	(6, 150.0, 6, 'BAR'),
-	(7, 700.0, 7, 'SHA'),
-	(8, 5000.0, 8, 'SHA'),
-	(9, 100.0, 9, 'SAN'),
-	(10, 250.0, 10, 'MIA'),
-	(11, 30000.0, 7, 'SHA');
-
 INSERT INTO TipoNavio (tipo) VALUES
 	('Porta-contêiner'),
 	('Graneleiro'),
@@ -217,7 +205,7 @@ INSERT INTO TipoNavioTransporta (tipo_navio, categoria_id) VALUES
 	
 	-- Petroleiro
 	('Petroleiro', 4),       -- Móveis (supondo grandes volumes pesados)
-	x
+	
 	-- Cargueiro Geral
 	('Cargueiro Geral', 1),  -- Eletrônicos
 	('Cargueiro Geral', 2),  -- Alimentos
@@ -229,7 +217,28 @@ INSERT INTO TipoNavioTransporta (tipo_navio, categoria_id) VALUES
 	('Navio de Passageiros', 3),  -- Vestuário
 	('Navio de Passageiros', 5);  -- Livros
 
-UPDATE Carga as c
-SET navio_id = 4
-WHERE c.id = 8;
+INSERT INTO Carga (id, peso, produto_id, porto_id, navio_id) VALUES
+	(1, 500.0, 1, 'RJ1', NULL),
+	(2, 1200.0, 2, 'SAN', NULL),
+	(3, 2000.0, 3, 'BUE', NULL),
+	(4, 300.0, 4, 'MIA', NULL),
+	(5, 8000.0, 5, 'MAR', NULL),
+	(6, 150.0, 6, 'BAR', NULL),
+	(7, 700.0, 7, 'SHA', NULL),
+	(8, 5000.0, 8, 'SHA', NULL),
+	(9, 100.0, 9, 'SAN', NULL),
+	(10, 250.0, 10, 'MIA', NULL),
+	(11, 30000.0, 7, 'SHA', NULL),
 
+	(12, 300.0, 1, NULL, 7),
+	(13, 2300.0, 9, NULL, 7),
+	(14, 4300.0, 1, NULL, 7),
+	(15, 3050.0, 2, NULL, 7),
+	(16, 1020.0, 6, NULL, 7),
+	(17, 2010.0, 1, NULL, 7),
+
+	(18, 100.0, 1, 'SHA', NULL),
+	(19, 100.0, 1, 'SHA', NULL),
+	(20, 100.0, 1, 'SHA', NULL),
+	(21, 100.0, 1, 'SHA', NULL),
+	(22, 100.0, 1, 'SHA', NULL);

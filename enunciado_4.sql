@@ -58,7 +58,7 @@ BEGIN
 	custo := carga.preco_para_movimentar * carga.peso;
 
 	UPDATE Carga as c
-	SET navio_id = navioId
+	SET navio_id = navioId, porto_id = NULL
 	WHERE c.id = cargaId;
 	RAISE NOTICE 'O navio % foi carregado com a carga de id % e com custo %', navio.nome, carga.id, custo;
 
