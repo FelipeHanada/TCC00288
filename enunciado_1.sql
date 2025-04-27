@@ -1,4 +1,4 @@
-SET search_path TO fh;
+SET search_path TO afpg;
 
 CREATE OR REPLACE FUNCTION enunciado1(codigo_navio INT, destino CHAR(3), distancia_maxima REAL DEFAULT 'infinity')
 RETURNS TABLE(

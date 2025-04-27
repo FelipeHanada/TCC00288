@@ -1,4 +1,4 @@
-SET search_path TO fh;
+SET search_path TO afpg;
 
 CREATE OR REPLACE FUNCTION calcular_custo_movimentacao(p_volume REAL, p_categoria INTEGER) RETURNS REAL AS $$
 DECLARE

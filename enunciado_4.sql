@@ -1,4 +1,4 @@
-SET search_path TO fh;
+SET search_path TO afpg;
 
 CREATE OR REPLACE FUNCTION enunciado4(cargaId integer, navioId integer)
 RETURNS TABLE (

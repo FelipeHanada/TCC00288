@@ -1,3 +1,5 @@
+SET search_path TO afpg;
+
 CREATE OR REPLACE FUNCTION enunciado3a(codigo_porto VARCHAR(3))
 RETURNS TABLE(
 	id INTEGER,
