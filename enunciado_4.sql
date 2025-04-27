@@ -13,11 +13,10 @@ DECLARE
 	navio_carga RECORD;
 	carga RECORD;
 	categoria RECORD;
-	total_carregado integer;
+	total_carregado integer := 0;
 	capacidade_atual integer;
 	custo REAL;
 BEGIN
-	total_carregado := 0;
 	FOR navio_carga IN SELECT * FROM Carga as c where navioId = c.navio_id
 	LOOP
 		total_carregado := total_carregado + navio_carga.peso;
