@@ -203,7 +203,8 @@ INSERT INTO Navio (codigo, nome, pais_origem, modelo, porto_id) VALUES
 	(7, 'Rio Express', 'BRA', 'CGX-200', 'BUE'),
 	(8, 'Shanghai Breeze', 'CHN', 'MDC-1000', 'MIA'),
 	(9, 'Barcelona Star', 'ESP', 'PAS-700', 'SAN'),
-	(10, 'Miami Freighter', 'USA', 'PET-800', 'SHA');
+	(10, 'Miami Freighter', 'USA', 'PET-800', 'SHA'),
+	(11, 'Rio Grande', 'BRA', 'MDC-1000', NULL);
 
 INSERT INTO TipoNavioTransporta (tipo_navio, categoria_id) VALUES
 	-- Porta-contêiner
@@ -216,7 +217,7 @@ INSERT INTO TipoNavioTransporta (tipo_navio, categoria_id) VALUES
 	
 	-- Petroleiro
 	('Petroleiro', 4),       -- Móveis (supondo grandes volumes pesados)
-	
+	x
 	-- Cargueiro Geral
 	('Cargueiro Geral', 1),  -- Eletrônicos
 	('Cargueiro Geral', 2),  -- Alimentos
