@@ -16,7 +16,7 @@ DECLARE
 	
 	pilha CHAR(3)[] := ARRAY[]::CHAR(3)[];
 	atual_cod CHAR(3) := destino;
-	passo INTEGER := 0;
+	passo INTEGER;
 	distancia REAL;
 	distancia_acumulada REAL := 0;
 BEGIN
@@ -102,7 +102,7 @@ BEGIN
 
 	RAISE NOTICE 'O navio % saiu do porto %', codigo_navio, origem;
 
-	WHILE atual_cod IS NOT NULL AND atual_cod IS NOT NULL LOOP
+	WHILE atual_cod IS NOT NULL LOOP
         pilha := array_prepend(atual_cod, pilha);
         SELECT anterior INTO atual_cod
 			FROM fila_prioridade
@@ -110,7 +110,7 @@ BEGIN
     END LOOP;
 
     FOR i IN 1..array_length(pilha, 1) - 1 LOOP
-        passo := passo + 1;
+        passo := i;
 
         SELECT r.distancia INTO distancia FROM Rota r
 		WHERE r.origem = pilha[i] AND r.destino = pilha[i+1];
