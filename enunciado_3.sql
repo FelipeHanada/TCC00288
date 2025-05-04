@@ -1,47 +1,33 @@
 SET search_path TO afpg;
 
-CREATE OR REPLACE FUNCTION enunciado3a(codigo_porto VARCHAR(3))
-RETURNS TABLE(
-	id INTEGER,
-	peso REAL,
-	produto_id INTEGER,
-	porto_id VARCHAR(3),
-	navio_id INTEGER,
-	status TEXT
-) AS $$
-BEGIN
-	RETURN QUERY
-	
-	SELECT
-	Carga.id,
-	Carga.peso,
-	Carga.produto_id,
-	Carga.porto_id,
-	Carga.navio_id,
-	CASE
-		WHEN Carga.navio_id IS NULL THEN 'Armazenada' ELSE 'Em movimento'
-	END AS status
-	
-	FROM fh.Carga
-	WHERE Carga.porto_id = codigo_porto;
-	
-END;
-$$ LANGUAGE plpgsql;
+DROP TYPE IF EXISTS carga_info CASCADE;
+CREATE TYPE carga_info AS (
+    id TEXT,
+    peso INTEGER
+);
 
-CREATE OR REPLACE FUNCTION enunciado3b(navio_id INTEGER, codigo_porto VARCHAR(3))
+CREATE OR REPLACE FUNCTION mochila(navio_id INTEGER, codigo_porto VARCHAR(3))
 RETURNS TABLE (
-	carga_id INTEGER,
-	carga_peso REAL
+	cargas carga_info[], 
+	peso_total INTEGER
 ) AS $$
 DECLARE
 	carga RECORD;
 	navio RECORD;
-
 	navio_carga RECORD;
 	total_carregado INTEGER := 0;
-	capacidade INTEGER;
+	capacidade_maxima INTEGER;
 
-	dp_record RECORD;
+    pesos INTEGER[];
+    ids INTEGER[];
+    n INTEGER;
+    dp INTEGER[][] := '{}';
+    keep BOOLEAN[][] := '{}';
+    i INTEGER;
+    w INTEGER;
+    resultado INTEGER := 0;
+    selecionados carga_info[] := '{}';
+	linha carga_info;
 BEGIN
 	SELECT * INTO navio
 	FROM Navio n
@@ -49,68 +35,87 @@ BEGIN
 		JOIN TipoNavio tn ON (m.tipo = tn.tipo)
 	WHERE n.codigo = navio_id;
 
-	FOR navio_carga IN SELECT * FROM Carga c where navio.codigo = c.navio_id
+	FOR navio_carga IN SELECT * FROM Carga c WHERE navio.codigo = c.navio_id
 	LOOP
 		total_carregado := total_carregado + navio_carga.peso;
 	END LOOP;
-	capacidade := navio.capacidade - total_carregado;
+
+	capacidade_maxima := navio.capacidade - total_carregado;
 
 	RAISE NOTICE 'navio capacidade: %', navio.capacidade;
-	RAISE NOTICE 'capacidade: %', capacidade;
+	RAISE NOTICE 'capacidade restante: %', capacidade_maxima;
 
-	CREATE TEMP TABLE dp (
-		peso_corrente INTEGER PRIMARY KEY,
-		carga_id INTEGER,
-		carga_peso REAL
-	) ON COMMIT DROP;
-	INSERT INTO dp (peso_corrente, carga_id, carga_peso) VALUES (0, NULL, NULL);
+	SELECT array_agg(peso), array_agg(id)
+    INTO pesos, ids
+    FROM Carga c
+	WHERE c.porto_id = codigo_porto AND c.navio_id IS NULL;
 
-	FOR carga IN
-		SELECT c.id, c.peso
-		FROM TipoNavioTransporta tnt
-			JOIN CategoriaProduto cpr ON (tnt.categoria_id = cpr.id)
-			JOIN Produto p ON (cpr.id = p.categoria_id)
-			JOIN Carga c ON (c.produto_id = p.id)
-		WHERE
-			navio.tipo = tnt.tipo_navio
-			AND c.porto_id = codigo_porto
-	LOOP
-		RAISE NOTICE 'verificando carga % com peso %', carga.id, carga.peso;
-	
-		FOR dp_record IN
-			SELECT *
-			FROM dp dp1
-			WHERE
-				dp1.peso_corrente + carga.peso <= capacidade
-				AND dp1.peso_corrente + carga.peso NOT IN (
-					SELECT dp2.peso_corrente
-					FROM dp dp2
-				) -- não existe uma entrada com chave primária peso_corrente + peso
-			ORDER BY dp1.peso_corrente DESC
-		LOOP
+    n := COALESCE(array_length(pesos, 1), 0);
+    IF n = 0 OR capacidade_maxima <= 0 THEN
+        RETURN;
+    END IF;
 
-			RAISE NOTICE 'adicionando';
-			INSERT INTO dp VALUES (dp_record.peso_corrente + carga.peso, carga.id, carga.peso);
-		
-		END LOOP;
-	END LOOP;
+	dp := array_fill(0, ARRAY[n+1, capacidade_maxima+1], ARRAY[0, 0]);
+	keep := array_fill(FALSE, ARRAY[n+1, capacidade_maxima+1], ARRAY[0, 0]);
 
-	SELECT * INTO dp_record
-	FROM dp
-	ORDER BY peso_corrente DESC
-	LIMIT 1;
+    FOR i IN 1..n LOOP
+        FOR w IN 0..capacidade_maxima LOOP
+            IF pesos[i] <= w THEN
+ 				IF w >= pesos[i] AND dp[i-1][w] < dp[i-1][w - pesos[i]] + pesos[i] THEN
+                    dp[i][w] := dp[i-1][w - pesos[i]] + pesos[i];
+                    keep[i][w] := true;
+                ELSE
+                    dp[i][w] := dp[i-1][w];
+                END IF;
+            ELSE
+                dp[i][w] := dp[i-1][w];
+            END IF;
+        END LOOP;
+    END LOOP;
 
-	WHILE dp_record.carga_id IS NOT NULL
-	LOOP
-		RETURN QUERY SELECT dp_record.carga_id, dp_record.carga_peso;
+    resultado := dp[n][capacidade_maxima];
+    peso_total := resultado;
 
-		SELECT * INTO dp_record
-		FROM dp
-		WHERE peso_corrente = dp_record.peso_corrente - dp_record.carga_peso;
-	END LOOP;
+    w := capacidade_maxima;
+    FOR i IN REVERSE n..1 LOOP
+        IF keep[i][w] THEN
+            linha := ROW(ids[i], pesos[i]);
+            selecionados := array_append(selecionados, linha);
+            w := w - pesos[i];
+        END IF;
+    END LOOP;
+
+    cargas := selecionados;
+
+	RETURN QUERY SELECT selecionados, peso_total;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION enunciado3b(codigo_porto VARCHAR(3))
+RETURNS TABLE (
+    navio_id INTEGER,
+    cargas carga_info[], 
+    peso_total INTEGER
+) AS $$
+DECLARE
+    navio RECORD;
+    cargas carga_info[];
+    peso_total INTEGER;
+BEGIN
+    FOR navio IN
+        SELECT n.codigo
+        FROM Navio as n
+        WHERE n.porto_id = codigo_porto
+    LOOP
+        SELECT m.cargas, m.peso_total
+        INTO cargas, peso_total
+        FROM mochila(navio.codigo, codigo_porto) as m
+        LIMIT 1;
+
+        RETURN QUERY SELECT navio.codigo, cargas, peso_total;
+    END LOOP;
 END
 $$ LANGUAGE plpgsql;
 
 
-SELECT * FROM enunciado3a('SHA');
-SELECT * FROM enunciado3b(4, 'SHA');
+SELECT * FROM enunciado3b('SHA');
