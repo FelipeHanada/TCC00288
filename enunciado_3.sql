@@ -45,7 +45,9 @@ BEGIN
 	RAISE NOTICE 'navio capacidade: %', navio.capacidade;
 	RAISE NOTICE 'capacidade restante: %', capacidade_maxima;
 
-	SELECT array_agg(peso), array_agg(id)
+	capacidade_maxima := capacidade_maxima/100;
+
+	SELECT array_agg(peso/100), array_agg(id)
     INTO pesos, ids
     FROM Carga c
 	WHERE c.porto_id = codigo_porto AND c.navio_id IS NULL;
@@ -79,7 +81,7 @@ BEGIN
     w := capacidade_maxima;
     FOR i IN REVERSE n..1 LOOP
         IF keep[i][w] THEN
-            linha := ROW(ids[i], pesos[i]);
+            linha := ROW(ids[i], pesos[i] * 100);
             selecionados := array_append(selecionados, linha);
             w := w - pesos[i];
         END IF;
@@ -87,7 +89,7 @@ BEGIN
 
     cargas := selecionados;
 
-	RETURN QUERY SELECT selecionados, peso_total;
+	RETURN QUERY SELECT selecionados, peso_total * 100;
 END
 $$ LANGUAGE plpgsql;
 
