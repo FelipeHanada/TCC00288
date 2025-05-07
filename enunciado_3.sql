@@ -14,11 +14,9 @@ CREATE TYPE dp_type AS (
 	carga_peso REAL
 );
 
-CREATE OR REPLACE FUNCTION busca_binaria(arr dp_type[], alvo INTEGER)
+CREATE OR REPLACE FUNCTION busca_binaria(arr dp_type[], alvo INTEGER, inicio INTEGER, fim INTEGER)
 RETURNS INTEGER AS $$
 DECLARE
-    inicio INTEGER := 1;
-    fim INTEGER := array_length(arr, 1);
     meio INTEGER;
 BEGIN
     WHILE inicio <= fim LOOP
@@ -54,11 +52,9 @@ DECLARE
 	peso INTEGER := 1;
 
   	new_peso INTEGER;
-  	existe BOOLEAN;
   	entrada dp_type;
     i INTEGER;
     w INTEGER := 0;
-    resultado INTEGER := 0;
     selecionados carga_info[] := '{}';
 	linha carga_info;
 	dp_len INTEGER;
@@ -94,7 +90,7 @@ BEGIN
 			AND c.porto_id = codigo_porto
 	LOOP
 		RAISE NOTICE '%', carga;
-		w := w + 1;
+
 		dp_len := array_length(dp, 1);
 		
 		FOR i IN 1..dp_len LOOP
@@ -104,17 +100,8 @@ BEGIN
 		    IF new_peso > capacidade_maxima THEN
 		      CONTINUE;
 		    END IF;
-		
-		    -- Verifica se já existe new_peso no dp
-		    existe := FALSE;
-		    FOR j IN 1..array_length(dp, 1) LOOP
-		      IF dp[j].peso_corrente = new_peso THEN
-		        existe := TRUE;
-		        EXIT;
-		      END IF;
-	    	END LOOP;
 	
-		    IF NOT existe THEN
+		    IF busca_binaria(dp, new_peso, 1, array_length(dp, 1)) < 0 THEN
 		      dp := array_append(dp, ROW(new_peso, w, carga.id, carga.peso)::dp_type);
 		      RAISE NOTICE 'Adicionando %', new_peso;
 			END IF;
@@ -131,7 +118,7 @@ BEGIN
 	WHILE peso > 0 LOOP
 		linha := ROW(dp[w].carga_id, dp[w].peso_corrente);
 		selecionados := array_append(selecionados, linha);
-		w := busca_binaria(dp, dp[w].peso_corrente - peso);
+		w := busca_binaria(dp, dp[w].peso_corrente - peso, 1, w);
 		peso := dp[w].carga_peso;
 	END LOOP;
 
