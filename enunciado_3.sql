@@ -6,6 +6,37 @@ CREATE TYPE carga_info AS (
     peso INTEGER
 );
 
+DROP TYPE IF EXISTS dp_type CASCADE;
+CREATE TYPE dp_type AS (
+    peso_corrente INTEGER,
+	indice INTEGER,
+    carga_id INTEGER,
+	carga_peso REAL
+);
+
+CREATE OR REPLACE FUNCTION busca_binaria(arr dp_type[], alvo INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    inicio INTEGER := 1;
+    fim INTEGER := array_length(arr, 1);
+    meio INTEGER;
+BEGIN
+    WHILE inicio <= fim LOOP
+        meio := (inicio + fim) / 2;
+
+        IF arr[meio].peso_corrente = alvo THEN
+            RETURN meio;
+        ELSIF arr[meio].peso_corrente < alvo THEN
+            inicio := meio + 1;
+        ELSE
+            fim := meio - 1;
+        END IF;
+    END LOOP;
+
+    RETURN -1;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION mochila(navio_id INTEGER, codigo_porto VARCHAR(3))
 RETURNS TABLE (
 	cargas carga_info[], 
@@ -18,16 +49,19 @@ DECLARE
 	total_carregado INTEGER := 0;
 	capacidade_maxima INTEGER;
 
-    pesos INTEGER[];
-    ids INTEGER[];
-    n INTEGER;
-    dp INTEGER[][] := '{}';
-    keep BOOLEAN[][] := '{}';
+    dp dp_type[] := '{}';
+	carga_dp dp_type;
+	peso INTEGER := 1;
+
+  	new_peso INTEGER;
+  	existe BOOLEAN;
+  	entrada dp_type;
     i INTEGER;
-    w INTEGER;
+    w INTEGER := 0;
     resultado INTEGER := 0;
     selecionados carga_info[] := '{}';
 	linha carga_info;
+	dp_len INTEGER;
 BEGIN
 	SELECT * INTO navio
 	FROM Navio n
@@ -45,51 +79,65 @@ BEGIN
 	RAISE NOTICE 'navio capacidade: %', navio.capacidade;
 	RAISE NOTICE 'capacidade restante: %', capacidade_maxima;
 
-	capacidade_maxima := capacidade_maxima/100;
+    carga_dp := (0, 0, NULL, NULL);
 
-	SELECT array_agg(peso/100), array_agg(id)
-    INTO pesos, ids
-    FROM Carga c
-	WHERE c.porto_id = codigo_porto AND c.navio_id IS NULL;
+    dp := array_append(dp, carga_dp);
 
-    n := COALESCE(array_length(pesos, 1), 0);
-    IF n = 0 OR capacidade_maxima <= 0 THEN
-        RETURN;
-    END IF;
+	FOR carga IN
+		SELECT c.id, c.peso
+		FROM TipoNavioTransporta tnt
+			JOIN CategoriaProduto cpr ON (tnt.categoria_id = cpr.id)
+			JOIN Produto p ON (cpr.id = p.categoria_id)
+			JOIN Carga c ON (c.produto_id = p.id)
+		WHERE
+			navio.tipo = tnt.tipo_navio
+			AND c.porto_id = codigo_porto
+	LOOP
+		RAISE NOTICE '%', carga;
+		w := w + 1;
+		dp_len := array_length(dp, 1);
+		
+		FOR i IN 1..dp_len LOOP
+	    	entrada := dp[i];
+	    	new_peso := entrada.peso_corrente + carga.peso;
+	
+		    IF new_peso > capacidade_maxima THEN
+		      CONTINUE;
+		    END IF;
+		
+		    -- Verifica se já existe new_peso no dp
+		    existe := FALSE;
+		    FOR j IN 1..array_length(dp, 1) LOOP
+		      IF dp[j].peso_corrente = new_peso THEN
+		        existe := TRUE;
+		        EXIT;
+		      END IF;
+	    	END LOOP;
+	
+		    IF NOT existe THEN
+		      dp := array_append(dp, ROW(new_peso, w, carga.id, carga.peso)::dp_type);
+		      RAISE NOTICE 'Adicionando %', new_peso;
+			END IF;
+	  	END LOOP;
 
-	dp := array_fill(0, ARRAY[n+1, capacidade_maxima+1], ARRAY[0, 0]);
-	keep := array_fill(FALSE, ARRAY[n+1, capacidade_maxima+1], ARRAY[0, 0]);
+	END LOOP;
 
-    FOR i IN 1..n LOOP
-        FOR w IN 0..capacidade_maxima LOOP
-            IF pesos[i] <= w THEN
- 				IF w >= pesos[i] AND dp[i-1][w] < dp[i-1][w - pesos[i]] + pesos[i] THEN
-                    dp[i][w] := dp[i-1][w - pesos[i]] + pesos[i];
-                    keep[i][w] := true;
-                ELSE
-                    dp[i][w] := dp[i-1][w];
-                END IF;
-            ELSE
-                dp[i][w] := dp[i-1][w];
-            END IF;
-        END LOOP;
-    END LOOP;
+	RAISE NOTICE '%', dp;
 
-    resultado := dp[n][capacidade_maxima];
-    peso_total := resultado;
+	w := array_upper(dp, 1);
+	peso := dp[w].carga_peso;
+	peso_total := dp[w].peso_corrente;
 
-    w := capacidade_maxima;
-    FOR i IN REVERSE n..1 LOOP
-        IF keep[i][w] THEN
-            linha := ROW(ids[i], pesos[i] * 100);
-            selecionados := array_append(selecionados, linha);
-            w := w - pesos[i];
-        END IF;
-    END LOOP;
+	WHILE peso > 0 LOOP
+		linha := ROW(dp[w].carga_id, dp[w].peso_corrente);
+		selecionados := array_append(selecionados, linha);
+		w := busca_binaria(dp, dp[w].peso_corrente - peso);
+		peso := dp[w].carga_peso;
+	END LOOP;
 
     cargas := selecionados;
 
-	RETURN QUERY SELECT selecionados, peso_total * 100;
+	RETURN QUERY SELECT selecionados, peso_total;
 END
 $$ LANGUAGE plpgsql;
 
