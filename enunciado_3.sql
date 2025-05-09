@@ -117,7 +117,7 @@ BEGIN
 	peso_total := dp[w].peso_corrente;
 
 	WHILE peso > 0 LOOP
-		linha := ROW(dp[w].carga_id, dp[w].peso_corrente);
+		linha := ROW(dp[w].carga_id, dp[w].carga_peso);
 		selecionados := array_append(selecionados, linha);
 		w := busca_binaria(dp, dp[w].peso_corrente - peso, 1, w);
 		peso := dp[w].carga_peso;
