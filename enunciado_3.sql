@@ -88,6 +88,7 @@ BEGIN
 		WHERE
 			navio.tipo = tnt.tipo_navio
 			AND c.porto_id = codigo_porto
+		ORDER BY c.peso
 	LOOP
 		RAISE NOTICE '%', carga;
 
